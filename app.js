@@ -30,7 +30,7 @@ function renderPage(page) {
             `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.first_name)}&size=120&background=3390ec&color=fff&bold=true`;
 
         // Ссылка на бота с командой +100
-        const botUsername = 'ТВОЙ_БОТ_ЮЗЕРНЕЙМ'; // БЕЗ @, просто имя бота
+        const botUsername = 'courierhubot'; // БЕЗ @, просто имя бота
         const addPointsUrl = `https://t.me/${botUsername}?start=add_points`;
 
         content.innerHTML = `
