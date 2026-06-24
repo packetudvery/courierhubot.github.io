@@ -2,10 +2,6 @@ const Telegram = window.Telegram.WebApp;
 Telegram.ready();
 Telegram.expand();
 
-// ===== DOM-элементы =====
-const content = document.getElementById('content');
-const navItems = document.querySelectorAll('.nav-item');
-
 // ===== Данные пользователя =====
 let userData = {
     id: Telegram.initDataUnsafe?.user?.id || '—',
@@ -15,6 +11,10 @@ let userData = {
     points: 0,
     registered_at: '—'
 };
+
+// ===== DOM-элементы =====
+const content = document.getElementById('content');
+const navItems = document.querySelectorAll('.nav-item');
 
 // ===== Отрисовка страниц =====
 function renderPage(page) {
@@ -28,6 +28,22 @@ function renderPage(page) {
         `;
     } else if (page === 'profile') {
         const avatarUrl = userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.first_name)}&size=120&background=3390ec&color=fff&bold=true`;
+        
+        let formattedDate = '—';
+        if (userData.registered_at && userData.registered_at !== '—') {
+            try {
+                const date = new Date(userData.registered_at);
+                formattedDate = date.toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                formattedDate = '—';
+            }
+        }
 
         content.innerHTML = `
             <div class="page page-profile active">
@@ -46,7 +62,7 @@ function renderPage(page) {
                         </div>
                         <div class="stat-item" style="grid-column: 1 / -1;">
                             <div class="stat-label">📅 Дата регистрации</div>
-                            <div class="stat-value">${userData.registered_at}</div>
+                            <div class="stat-value">${formattedDate}</div>
                         </div>
                     </div>
                 </div>
@@ -54,7 +70,6 @@ function renderPage(page) {
         `;
     }
 
-    // Обновляем активную кнопку
     navItems.forEach(item => {
         item.classList.toggle('active', item.dataset.page === page);
     });
@@ -68,23 +83,25 @@ navItems.forEach(item => {
     });
 });
 
-// ===== Получение данных с бота =====
+// ===== Запрос данных у бота =====
 function fetchUserData() {
-    // Отправляем запрос боту через WebApp
     Telegram.sendData(JSON.stringify({ action: 'get_user_data' }));
 }
 
 // ===== Обработка данных от бота =====
-Telegram.onEvent('mainButtonClicked', () => {});
-Telegram.onEvent('dataReceived', (data) => {
+Telegram.WebApp.onEvent('dataReceived', (data) => {
     try {
         const parsed = JSON.parse(data);
         if (parsed.action === 'user_data') {
-            userData = { ...userData, ...parsed.data };
+            userData.points = parsed.data.points || 0;
+            userData.registered_at = parsed.data.registered_at || '—';
             renderPage('profile');
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error('Ошибка парсинга данных:', e);
+    }
 });
 
 // ===== Инициализация =====
 renderPage('home');
+setTimeout(fetchUserData, 500);
