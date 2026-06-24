@@ -4,13 +4,41 @@ const Telegram = window.Telegram.WebApp;
 Telegram.ready();
 Telegram.expand();
 
-console.log('Telegram WebApp инициализирован');
+// ===== СОЗДАЕМ ОКОШКО ДЛЯ ЛОГОВ =====
+const logContainer = document.createElement('div');
+logContainer.style.cssText = `
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    color: #00ff00;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 9999;
+    display: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+`;
+document.body.appendChild(logContainer);
 
-// ===== ПРОВЕРЯЕМ, ЧТО ПРИШЛО ОТ TELEGRAM =====
-console.log('initDataUnsafe:', Telegram.initDataUnsafe);
+// ===== ФУНКЦИЯ ДЛЯ ВЫВОДА ЛОГОВ =====
+function addLog(msg) {
+    console.log(msg);
+    logContainer.style.display = 'block';
+    logContainer.innerHTML += new Date().toLocaleTimeString() + ' ' + msg + '\n';
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// ===== ПРОВЕРЯЕМ initData =====
+addLog('=== WEB APP ЗАПУЩЕН ===');
 
 const user = Telegram.initDataUnsafe?.user || {};
-console.log('Данные пользователя из Telegram:', user);
+addLog(`Пользователь: ${user.first_name || 'нет'} (@${user.username || 'нет'})`);
 
 // ===== ДАННЫЕ ПОЛЬЗОВАТЕЛЯ =====
 let userData = {
@@ -22,13 +50,9 @@ let userData = {
     registered_at: '—'
 };
 
-console.log('Начальные данные:', userData);
-
 // ===== DOM-элементы =====
 const content = document.getElementById('content');
 const navItems = document.querySelectorAll('.nav-item');
-
-console.log('DOM загружен, элементов навигации:', navItems.length);
 
 // ===== ФОРМАТИРОВАНИЕ ДАТЫ =====
 function formatDate(dateStr) {
@@ -43,14 +67,13 @@ function formatDate(dateStr) {
             minute: '2-digit'
         });
     } catch (e) {
-        console.error('Ошибка форматирования даты:', e);
         return '—';
     }
 }
 
 // ===== ОТРИСОВКА СТРАНИЦ =====
 function renderPage(page) {
-    console.log(`Отрисовка страницы: ${page}`);
+    addLog(`Отрисовка: ${page}`);
 
     if (page === 'home') {
         content.innerHTML = `
@@ -60,10 +83,7 @@ function renderPage(page) {
                 <p>Здесь будет главная страница</p>
             </div>
         `;
-        console.log('Страница HOME отрисована');
     } else if (page === 'profile') {
-        console.log('Отрисовка профиля с данными:', userData);
-
         const avatarUrl = userData.avatar ||
             `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.first_name)}&size=120&background=3390ec&color=fff&bold=true`;
 
@@ -90,7 +110,6 @@ function renderPage(page) {
                 </div>
             </div>
         `;
-        console.log('Страница PROFILE отрисована');
     }
 
     navItems.forEach(item => {
@@ -101,80 +120,54 @@ function renderPage(page) {
 // ===== НАВИГАЦИЯ =====
 navItems.forEach(item => {
     item.addEventListener('click', () => {
-        const page = item.dataset.page;
-        console.log(`Нажата навигация: ${page}`);
-        renderPage(page);
+        renderPage(item.dataset.page);
     });
 });
 
 // ===== ЗАПРОС ДАННЫХ У БОТА =====
 function fetchUserData() {
-    console.log('=== ОТПРАВКА ЗАПРОСА К БОТУ ===');
     const data = JSON.stringify({ action: 'get_user_data' });
-    console.log('Отправляем данные:', data);
-
+    addLog(`📤 Отправка: ${data}`);
     try {
         Telegram.sendData(data);
-        console.log('Данные отправлены успешно');
+        addLog('📤 Отправлено успешно');
     } catch (e) {
-        console.error('ОШИБКА ОТПРАВКИ:', e);
+        addLog(`❌ Ошибка отправки: ${e.message}`);
     }
 }
 
 // ===== ОБРАБОТКА ОТВЕТА ОТ БОТА =====
 Telegram.onEvent('dataReceived', (data) => {
-    console.log('=== ПОЛУЧЕН ОТВЕТ ОТ БОТА ===');
-    console.log('Сырые данные:', data);
-    console.log('Тип данных:', typeof data);
-
+    addLog(`📥 Получен ответ: ${data}`);
     try {
         const parsed = JSON.parse(data);
-        console.log('Распарсенные данные:', parsed);
+        addLog(`📥 Распарсено: ${JSON.stringify(parsed)}`);
 
         if (parsed.action === 'user_data') {
-            console.log('Действие: user_data');
-            console.log('Данные от бота:', parsed.data);
-
             if (parsed.data.points !== undefined) {
-                console.log(`Обновляем очки: ${userData.points} -> ${parsed.data.points}`);
+                addLog(`⭐ Очки: ${userData.points} -> ${parsed.data.points}`);
                 userData.points = parsed.data.points;
             }
-
             if (parsed.data.registered_at) {
-                console.log(`Обновляем дату: ${userData.registered_at} -> ${parsed.data.registered_at}`);
+                addLog(`📅 Дата: ${userData.registered_at} -> ${parsed.data.registered_at}`);
                 userData.registered_at = parsed.data.registered_at;
             }
-
-            console.log('Итоговые данные пользователя:', userData);
-
-            // Перерисовываем профиль
-            const activePage = document.querySelector('.nav-item.active');
-            console.log('Активная страница:', activePage?.dataset.page);
-
-            if (activePage && activePage.dataset.page === 'profile') {
-                console.log('Перерисовываем профиль...');
-                renderPage('profile');
-            } else {
-                console.log('Профиль не активен, переключаем...');
-                renderPage('profile');
-            }
+            renderPage('profile');
+            addLog('✅ Профиль обновлен!');
         } else {
-            console.warn('Неизвестное действие:', parsed.action);
+            addLog(`⚠️ Неизвестное действие: ${parsed.action}`);
         }
     } catch (e) {
-        console.error('ОШИБКА ПАРСИНГА ОТВЕТА:', e);
-        console.error('Стек ошибки:', e.stack);
+        addLog(`❌ Ошибка парсинга: ${e.message}`);
     }
 });
 
 // ===== ОБРАБОТКА ОШИБОК ОТПРАВКИ =====
 Telegram.onEvent('dataSendFailed', (error) => {
-    console.error('=== ОШИБКА ОТПРАВКИ ДАННЫХ ===');
-    console.error('Ошибка:', error);
+    addLog(`❌ Ошибка отправки: ${error}`);
 });
 
 // ===== ЗАПУСК =====
-console.log('=== ИНИЦИАЛИЗАЦИЯ ===');
 renderPage('profile');
-console.log('Запрашиваем данные через 500ms...');
-setTimeout(fetchUserData, 500);
+addLog('⏳ Запрос данных через 500ms...');
+setTimeout(fetchUserData, 1000);
