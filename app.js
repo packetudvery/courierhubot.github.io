@@ -29,6 +29,10 @@ function renderPage(page) {
         const avatarUrl = userData.avatar ||
             `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.first_name)}&size=120&background=3390ec&color=fff&bold=true`;
 
+        // Ссылка на бота с командой +100
+        const botUsername = 'ТВОЙ_БОТ_ЮЗЕРНЕЙМ'; // БЕЗ @, просто имя бота
+        const addPointsUrl = `https://t.me/${botUsername}?start=add_points`;
+
         content.innerHTML = `
             <div class="page page-profile active">
                 <div class="profile-card">
@@ -45,29 +49,25 @@ function renderPage(page) {
                             <div class="stat-value">0</div>
                         </div>
                         <div class="stat-item full">
-                            <button id="addPointsBtn" style="
+                            <a href="${addPointsUrl}" style="
+                                display: block;
                                 background: var(--tg-theme-button-color, #3390ec);
                                 color: var(--tg-theme-button-text-color, #fff);
-                                border: none;
+                                text-decoration: none;
                                 padding: 12px 24px;
                                 border-radius: 12px;
                                 font-size: 16px;
                                 font-weight: 600;
-                                cursor: pointer;
+                                text-align: center;
                                 width: 100%;
                             ">
                                 🎯 +100 очков
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
         `;
-
-        // ===== ОБРАБОТЧИК КНОПКИ =====
-        document.getElementById('addPointsBtn').addEventListener('click', () => {
-            Telegram.sendData(JSON.stringify({ action: 'add_points' }));
-        });
     }
 
     navItems.forEach(item => {
@@ -80,17 +80,6 @@ navItems.forEach(item => {
     item.addEventListener('click', () => {
         renderPage(item.dataset.page);
     });
-});
-
-// ===== Обработка ответа от бота =====
-Telegram.onEvent('dataReceived', (data) => {
-    try {
-        const parsed = JSON.parse(data);
-        // Бот присылает текстовое сообщение, которое отображается как обычное сообщение
-        // Ничего не делаем, оно само придет в чат
-    } catch (e) {
-        // Игнорируем
-    }
 });
 
 // ===== Инициализация =====
