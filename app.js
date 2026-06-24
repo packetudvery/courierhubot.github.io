@@ -1,80 +1,22 @@
-console.log('=== WEB APP ЗАПУЩЕН ===');
-
 const Telegram = window.Telegram.WebApp;
 Telegram.ready();
 Telegram.expand();
 
-// ===== СОЗДАЕМ ОКОШКО ДЛЯ ЛОГОВ =====
-const logContainer = document.createElement('div');
-logContainer.style.cssText = `
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.8);
-    color: #00ff00;
-    font-family: monospace;
-    font-size: 12px;
-    padding: 10px;
-    border-radius: 8px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 9999;
-    display: none;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-`;
-document.body.appendChild(logContainer);
-
-// ===== ФУНКЦИЯ ДЛЯ ВЫВОДА ЛОГОВ =====
-function addLog(msg) {
-    console.log(msg);
-    logContainer.style.display = 'block';
-    logContainer.innerHTML += new Date().toLocaleTimeString() + ' ' + msg + '\n';
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
-
-// ===== ПРОВЕРЯЕМ initData =====
-addLog('=== WEB APP ЗАПУЩЕН ===');
-
+// ===== Данные пользователя (только из Telegram) =====
 const user = Telegram.initDataUnsafe?.user || {};
-addLog(`Пользователь: ${user.first_name || 'нет'} (@${user.username || 'нет'})`);
-
-// ===== ДАННЫЕ ПОЛЬЗОВАТЕЛЯ =====
-let userData = {
+const userData = {
     id: user.id || '—',
     username: user.username || '—',
     first_name: user.first_name || 'Курьер',
-    avatar: user.photo_url || '',
-    points: 0,
-    registered_at: '—'
+    avatar: user.photo_url || ''
 };
 
-// ===== DOM-элементы =====
+// ===== DOM =====
 const content = document.getElementById('content');
 const navItems = document.querySelectorAll('.nav-item');
 
-// ===== ФОРМАТИРОВАНИЕ ДАТЫ =====
-function formatDate(dateStr) {
-    if (!dateStr || dateStr === '—') return '—';
-    try {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    } catch (e) {
-        return '—';
-    }
-}
-
-// ===== ОТРИСОВКА СТРАНИЦ =====
+// ===== Отрисовка =====
 function renderPage(page) {
-    addLog(`Отрисовка: ${page}`);
-
     if (page === 'home') {
         content.innerHTML = `
             <div class="page page-home active">
@@ -100,16 +42,32 @@ function renderPage(page) {
                         </div>
                         <div class="stat-item">
                             <div class="stat-label">⭐ Очки</div>
-                            <div class="stat-value">${userData.points}</div>
+                            <div class="stat-value">0</div>
                         </div>
                         <div class="stat-item full">
-                            <div class="stat-label">📅 Дата регистрации</div>
-                            <div class="stat-value">${formatDate(userData.registered_at)}</div>
+                            <button id="addPointsBtn" style="
+                                background: var(--tg-theme-button-color, #3390ec);
+                                color: var(--tg-theme-button-text-color, #fff);
+                                border: none;
+                                padding: 12px 24px;
+                                border-radius: 12px;
+                                font-size: 16px;
+                                font-weight: 600;
+                                cursor: pointer;
+                                width: 100%;
+                            ">
+                                🎯 +100 очков
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         `;
+
+        // ===== ОБРАБОТЧИК КНОПКИ =====
+        document.getElementById('addPointsBtn').addEventListener('click', () => {
+            Telegram.sendData(JSON.stringify({ action: 'add_points' }));
+        });
     }
 
     navItems.forEach(item => {
@@ -117,57 +75,23 @@ function renderPage(page) {
     });
 }
 
-// ===== НАВИГАЦИЯ =====
+// ===== Навигация =====
 navItems.forEach(item => {
     item.addEventListener('click', () => {
         renderPage(item.dataset.page);
     });
 });
 
-// ===== ЗАПРОС ДАННЫХ У БОТА =====
-function fetchUserData() {
-    const data = JSON.stringify({ action: 'get_user_data' });
-    addLog(`📤 Отправка: ${data}`);
-    try {
-        Telegram.sendData(data);
-        addLog('📤 Отправлено успешно');
-    } catch (e) {
-        addLog(`❌ Ошибка отправки: ${e.message}`);
-    }
-}
-
-// ===== ОБРАБОТКА ОТВЕТА ОТ БОТА =====
+// ===== Обработка ответа от бота =====
 Telegram.onEvent('dataReceived', (data) => {
-    addLog(`📥 Получен ответ: ${data}`);
     try {
         const parsed = JSON.parse(data);
-        addLog(`📥 Распарсено: ${JSON.stringify(parsed)}`);
-
-        if (parsed.action === 'user_data') {
-            if (parsed.data.points !== undefined) {
-                addLog(`⭐ Очки: ${userData.points} -> ${parsed.data.points}`);
-                userData.points = parsed.data.points;
-            }
-            if (parsed.data.registered_at) {
-                addLog(`📅 Дата: ${userData.registered_at} -> ${parsed.data.registered_at}`);
-                userData.registered_at = parsed.data.registered_at;
-            }
-            renderPage('profile');
-            addLog('✅ Профиль обновлен!');
-        } else {
-            addLog(`⚠️ Неизвестное действие: ${parsed.action}`);
-        }
+        // Бот присылает текстовое сообщение, которое отображается как обычное сообщение
+        // Ничего не делаем, оно само придет в чат
     } catch (e) {
-        addLog(`❌ Ошибка парсинга: ${e.message}`);
+        // Игнорируем
     }
 });
 
-// ===== ОБРАБОТКА ОШИБОК ОТПРАВКИ =====
-Telegram.onEvent('dataSendFailed', (error) => {
-    addLog(`❌ Ошибка отправки: ${error}`);
-});
-
-// ===== ЗАПУСК =====
+// ===== Инициализация =====
 renderPage('profile');
-addLog('⏳ Запрос данных через 500ms...');
-setTimeout(fetchUserData, 1000);
